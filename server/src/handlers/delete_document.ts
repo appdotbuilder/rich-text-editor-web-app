@@ -1,8 +1,19 @@
+import { db } from '../db';
+import { documentsTable } from '../db/schema';
 import { type DeleteDocumentInput } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export const deleteDocument = async (input: DeleteDocumentInput): Promise<boolean> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is deleting a document from the database by ID.
-    // It should return true if the document was successfully deleted, false if it didn't exist.
-    return Promise.resolve(true);
+  try {
+    // Delete the document by ID
+    const result = await db.delete(documentsTable)
+      .where(eq(documentsTable.id, input.id))
+      .execute();
+
+    // Return true if a row was deleted, false if no document was found
+    return (result.rowCount ?? 0) > 0;
+  } catch (error) {
+    console.error('Document deletion failed:', error);
+    throw error;
+  }
 };
