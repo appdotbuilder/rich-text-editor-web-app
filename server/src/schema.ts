@@ -41,3 +41,11 @@ export const deleteDocumentInputSchema = z.object({
 });
 
 export type DeleteDocumentInput = z.infer<typeof deleteDocumentInputSchema>;
+
+// Input schema for AI text improvement
+export const improveTextWithAIInputSchema = z.object({
+  selectedText: z.string(),
+  aiCommand: z.string()
+});
+
+export type ImproveTextWithAIInput = z.infer<typeof improveTextWithAIInputSchema>;

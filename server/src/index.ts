@@ -9,7 +9,8 @@ import {
   createDocumentInputSchema, 
   updateDocumentInputSchema,
   getDocumentInputSchema,
-  deleteDocumentInputSchema
+  deleteDocumentInputSchema,
+  improveTextWithAIInputSchema
 } from './schema';
 
 // Import handlers
@@ -18,6 +19,7 @@ import { getDocuments } from './handlers/get_documents';
 import { getDocument } from './handlers/get_document';
 import { updateDocument } from './handlers/update_document';
 import { deleteDocument } from './handlers/delete_document';
+import { improveTextWithAI } from './handlers/improve_text_with_ai';
 
 const t = initTRPC.create({
   transformer: superjson,
@@ -50,6 +52,10 @@ const appRouter = router({
   deleteDocument: publicProcedure
     .input(deleteDocumentInputSchema)
     .mutation(({ input }) => deleteDocument(input)),
+    
+  improveTextWithAI: publicProcedure
+    .input(improveTextWithAIInputSchema)
+    .mutation(({ input }) => improveTextWithAI(input)),
 });
 
 export type AppRouter = typeof appRouter;

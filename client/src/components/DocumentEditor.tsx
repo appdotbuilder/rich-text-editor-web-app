@@ -5,6 +5,8 @@ import { Separator } from '@/components/ui/separator';
 import { ToolbarButton } from '@/components/ToolbarButton';
 import { ImageUploadDialog } from '@/components/ImageUploadDialog';
 import { LinkDialog } from '@/components/LinkDialog';
+import { AIDialog } from '@/components/AIDialog';
+import { trpc } from '@/utils/trpc';
 import { 
   Bold, 
   Italic, 
@@ -18,7 +20,8 @@ import {
   Heading2,
   Heading3,
   Quote,
-  Code
+  Code,
+  Sparkles
 } from 'lucide-react';
 import type { Document } from '../../../server/src/schema';
 
@@ -34,6 +37,10 @@ export function DocumentEditor({ document, onSave }: DocumentEditorProps) {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
+  const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
+  const [selectedText, setSelectedText] = useState('');
+  const [currentSelection, setCurrentSelection] = useState<Selection | null>(null);
+  const [showAIButton, setShowAIButton] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
 
   // Update local state when document changes
@@ -112,6 +119,84 @@ export function DocumentEditor({ document, onSave }: DocumentEditorProps) {
       executeCommand('insertHTML', link);
     }
     setIsLinkDialogOpen(false);
+  };
+
+  // Handle text selection for AI functionality
+  const handleSelectionChange = useCallback(() => {
+    const selection = window.getSelection();
+    if (selection && selection.toString().trim()) {
+      setSelectedText(selection.toString());
+      setCurrentSelection(selection);
+      setShowAIButton(true);
+    } else {
+      setSelectedText('');
+      setCurrentSelection(null);
+      setShowAIButton(false);
+    }
+  }, []);
+
+  // Add event listeners for selection changes
+  useEffect(() => {
+    const handleMouseUp = () => {
+      setTimeout(handleSelectionChange, 10); // Small delay to ensure selection is complete
+    };
+    
+    const handleKeyUp = () => {
+      setTimeout(handleSelectionChange, 10);
+    };
+
+    if (editorRef.current) {
+      editorRef.current.addEventListener('mouseup', handleMouseUp);
+      editorRef.current.addEventListener('keyup', handleKeyUp);
+    }
+
+    return () => {
+      if (editorRef.current) {
+        editorRef.current.removeEventListener('mouseup', handleMouseUp);
+        editorRef.current.removeEventListener('keyup', handleKeyUp);
+      }
+    };
+  }, [handleSelectionChange]);
+
+  // Handle AI text improvement
+  const handleAIImprovement = async (selectedText: string, aiCommand: string) => {
+    try {
+      const improvedText = await trpc.improveTextWithAI.mutate({
+        selectedText,
+        aiCommand
+      });
+
+      // Restore the selection and replace with improved text
+      if (currentSelection && currentSelection.rangeCount > 0) {
+        const range = currentSelection.getRangeAt(0);
+        
+        // Clear current selection and set the range
+        window.getSelection()?.removeAllRanges();
+        window.getSelection()?.addRange(range);
+        
+        // Replace the selected text with AI improved text
+        window.document.execCommand('insertHTML', false, improvedText);
+        
+        // Update the content state
+        if (editorRef.current) {
+          setContent(editorRef.current.innerHTML);
+        }
+        
+        // Clear selection state
+        setSelectedText('');
+        setCurrentSelection(null);
+        setShowAIButton(false);
+      }
+    } catch (error) {
+      console.error('AI text improvement failed:', error);
+      // You could add a toast notification here for better UX
+    }
+  };
+
+  const openAIDialog = () => {
+    if (selectedText.trim()) {
+      setIsAIDialogOpen(true);
+    }
   };
 
   return (
@@ -225,6 +310,17 @@ export function DocumentEditor({ document, onSave }: DocumentEditorProps) {
             onClick={() => setIsImageDialogOpen(true)}
             tooltip="Insert image"
           />
+          
+          <Separator orientation="vertical" className="h-6 mx-1" />
+          
+          {/* AI Tools */}
+          <ToolbarButton
+            icon={<Sparkles className="w-4 h-4" />}
+            onClick={openAIDialog}
+            tooltip="Improve with AI"
+            disabled={!showAIButton}
+            className={showAIButton ? 'bg-purple-100 text-purple-700 border-purple-200' : ''}
+          />
         </div>
       </div>
 
@@ -257,6 +353,13 @@ export function DocumentEditor({ document, onSave }: DocumentEditorProps) {
         open={isLinkDialogOpen}
         onOpenChange={setIsLinkDialogOpen}
         onInsert={insertLink}
+      />
+      
+      <AIDialog
+        open={isAIDialogOpen}
+        onOpenChange={setIsAIDialogOpen}
+        selectedText={selectedText}
+        onSubmit={handleAIImprovement}
       />
     </div>
   );
